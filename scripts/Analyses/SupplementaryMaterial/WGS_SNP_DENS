@@ -1,0 +1,27 @@
+#!/bin/bash
+
+#Define function
+SNPDENSITY_WGS() {
+
+    #First argument passed to the function is the WGS VCF
+    VCF=$1
+    #Extract SimuID from file name
+    SimID=$(basename -s ".vcf.gz" ${VCF} | cut -d '_' -f2)
+
+    #Estimate SNP_DENSITY
+    vcftools --gzvcf ${VCF} --SNPdensity 100000 --out ./Final_VCF/SNPdensity/DENSITY_${SimID}
+
+    #Average SNP densities per windows --> Average SNP density per KB
+    SNPdens=$(awk '{ sum += $4 } END { if (NR > 0) print sum / NR }' ./Final_VCF/SNPdensity/DENSITY_${SimID}.snpden)
+    
+    #save that in a file
+    echo -e "${SimID}\t${SNPdens}" >> ./Final_VCF/SNPdensity/WGS_SNPdensity.txt
+}
+
+export -f SNPDENSITY_WGS
+
+mkdir -p ./Final_VCF/SNPdensity
+#header
+echo -e "SimID\tSNPdens" > ./Final_VCF/SNPdensity/WGS_SNPdensity.txt
+
+for file in $(find ./Final_VCF/ -name "*.vcf.gz"); do SNPDENSITY_WGS ${file}; done

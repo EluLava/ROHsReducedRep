@@ -1,0 +1,126 @@
+///////////////////////////////////////////////////
+////////////////// INITIALIZE /////////////////////
+///////////////////////////////////////////////////
+
+
+initialize() {
+	//nonWF Model
+        initializeSLiMModelType("nonWF");
+
+        //Pedigree
+        initializeSLiMOptions(keepPedigrees = T);
+        //Tree-sequence
+        initializeTreeSeq(simplificationRatio = INF);
+
+        //Get the seed value
+        defineConstant("simID", getSeed());
+        //DEFINE NE
+        defineConstant("Ne", 1e3);
+        //DEFINE LENGTH
+        defineConstant("chr_length", 100);
+        //Define Mortality
+        defineConstant("FIT", c(0.9,0.7,0.5,0));
+        //Define Reproductive Fitness
+        defineConstant("REP", c(0,0,0.6,0.4));
+ 
+        //Mutation rate of 0
+        initializeMutationRate(0);
+        initializeMutationType("m1", 0.5, "f", 0);
+        // g1 genomic element type: all chr
+        initializeGenomicElementType("g1", m1, 1.0);
+
+        // uniform chromosome of length 100Gb
+        initializeGenomicElement(g1, 0, chr_length);
+        //Initializing recombination rate
+        initializeRecombinationRate(1e-8);
+
+        //delete files with same Simulation ID (i.e. seed)
+        deleteFile("./Simulations/mating_Ne" + Ne + "_Sim" + simID + ".txt");
+        deleteFile("./Simulations/death_Ne" + Ne + "_Sim" + simID + ".txt");
+
+
+}
+
+///////////////////////////////////////////////////
+//////////////////// CALLBACKS ////////////////////
+///////////////////////////////////////////////////
+
+reproduction() {
+        for (i in seqLen(Ne))
+        {
+                //Sample mate 1
+                mate1 = sample(p1.individuals, 1, weights = REP[p1.individuals.age]);
+                //Weigth from Fitness (+0.01 to avoid 0 with all related individuals)
+                weigths = (10*mate1.relatedness(p1.individuals) + 0.01)*REP[p1.individuals.age];
+                //sample mate 2 (higher prob with related indivifuals) with while lop to avoid selfing
+                do
+                {
+                        mate2 = sample(p1.individuals, 1, F, weigths);
+                }
+                while(mate1 == mate2);
+
+                //Create offspring
+                child = p1.addCrossed(mate1, mate2);
+                child.tag = child.pedigreeID;
+
+                //log the mating
+                line = paste(c(sim.generation, mate1.tag, mate2.tag, child.tag));
+                writeFile("./Simulations/mating_Ne" + Ne + "_Sim" + simID + ".txt", line, append = T);
+
+        }
+
+    self.active = 0;
+
+}
+
+///////////////////////////////////////////////////
+//////////////////// SIMULATION ///////////////////
+///////////////////////////////////////////////////
+
+// Generation 1, creating population
+1 {
+    sim.addSubpop("p1", Ne);
+        //Adding tag values from pedigree
+        p1.individuals.tag = p1.individuals.pedigreeID;
+        p1.individuals.age = rdunif(p1.individualCount, min = 0, max = 3);
+
+}
+
+// FITNESS & SURVIVAL
+early() {
+    inds = p1.individuals;
+        ages = inds.age;
+        survival = FIT[ages];
+        inds.fitnessScaling = survival;
+
+        //Density dependant Fitness
+        p1.fitnessScaling = Ne / (p1.individualCount * mean(survival));
+
+        //Save all individuals to save deaths later
+        sim.setValue("indiv_begin_gen", p1.individuals.tag);
+
+}
+
+late() {
+        //Individuals at the beginning of generation
+        ind_beg = sim.getValue("indiv_begin_gen");
+        //Individuals at then en of the generation (after fitness scaling)
+        ind_end = p1.individuals.tag;
+        //Dead = individuals from begining not in end
+        dead = ind_beg[match(ind_beg, ind_end) < 0];
+
+        //Log the results
+        for(indtag in dead)
+        {
+                line = paste(c(sim.generation, indtag));
+                writeFile("./Simulations/death_Ne" + Ne + "_Sim" + simID + ".txt", line, append = T);
+        }
+}
+
+///////////////////////////////////////////////////
+/////////////////////// OUPUT /////////////////////
+///////////////////////////////////////////////////
+
+1000 late() {
+    sim.simulationFinished();}
+

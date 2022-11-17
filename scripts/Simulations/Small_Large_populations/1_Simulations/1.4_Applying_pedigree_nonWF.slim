@@ -1,0 +1,128 @@
+///////////////////////////////////////////////////
+///////// FUNCTION READ MATING & DEATHS ///////////
+///////////////////////////////////////////////////
+
+function(i) readIntTable(s$ path)
+{
+        if (!fileExists(path))
+                stop("readIntTable(): file no found at path" + path);
+        l = readFile(path);
+        m = sapply(l, "asInteger(strsplit(applyValue));", simplify = "matrix");
+        return t(m);
+}
+
+///////////////////////////////////////////////////
+////////////////// INITIALIZE /////////////////////
+///////////////////////////////////////////////////
+
+
+initialize() {
+	//nonWF Model
+        initializeSLiMModelType("nonWF");
+
+        //Pedigree
+        initializeSLiMOptions(keepPedigrees = T);
+        //Tree-sequence
+        initializeTreeSeq(simplificationRatio = INF);
+        //DEFINE NE
+        defineConstant("Ne", 1000);
+        //DEFINE LENGTH
+        defineConstant("chr_length", (1e8)-1);
+        
+        //Setwd (Constant defined from command line)
+        setwd(cwd);
+
+        //Mutation rate of 0
+        initializeMutationRate(0);
+        initializeMutationType("m1", 0.5, "f", 0);
+        // g1 genomic element type: all chr
+        initializeGenomicElementType("g1", m1, 1.0);
+
+        // uniform chromosome of length 100Gb
+        initializeGenomicElement(g1, 0, chr_length);
+        //Reading the recombination Map
+        lines = readFile("./Fregene/Output/Slim_Friendly_RecMap_" + replicate);
+        rates = NULL;
+        ends = NULL;
+        for (line in lines)
+        {
+                components = strsplit(line, " ");
+                ends = c(ends, asInteger(components[0]));
+                rates = c(rates, asFloat(components[1]));
+        }
+
+		  //Initializing recombination map
+        initializeRecombinationRate(rates = rates, ends = sort(ends));
+
+        //Read files with same mutID
+        defineConstant("M", readIntTable("./Simulations/mating_Ne" + Ne + "_" + simID + ".txt"));
+        defineConstant("D", readIntTable("./Simulations/death_Ne" + Ne + "_" + simID + ".txt"));
+
+        //Extract generations (quicker)
+        defineConstant("Mg", drop(M[,0]));
+        defineConstant("Dg", drop(D[,0]));
+
+}
+
+///////////////////////////////////////////////////
+//////////////////// CALLBACKS ////////////////////
+///////////////////////////////////////////////////
+
+reproduction() {
+
+        //Subset the generation mating matrix
+        m = M[Mg == sim.generation,];
+
+        //Select mating rows by rows
+        for (i in seqLen(nrow(m)))
+        {
+                //Select mating
+                row = m[i,];
+                //Select mate 1
+                mate1 = p1.subsetIndividuals(tag = row[,1]);
+                //Select mate 2
+                mate2 = p1.subsetIndividuals(tag = row[,2]);
+
+                //Create offspring
+                child = p1.addCrossed(mate1, mate2);
+                child.tag = row[,3];
+
+        }
+
+        self.active = 0;
+
+}
+
+///////////////////////////////////////////////////
+//////////////////// SIMULATION ///////////////////
+///////////////////////////////////////////////////
+
+// Generation 1, creating population
+1 early() {
+        // Creating the Ne population
+        sim.addSubpop("p1", Ne);
+        // Adding tag values
+        p1.individuals.tag = p1.individuals.pedigreeID;
+}
+
+//Programming deaths
+early() {
+
+        //Individuals (quicker)
+        inds = p1.individuals;
+        //All individuals fitness = 1
+        inds.fitnessScaling = 1;
+
+        //subsample values from the generation to the DEATHS matrix
+        d = drop(D[Dg == sim.generation,1]);
+        //Get positions of matching for dead individuals
+        dead = match(d, inds.tag);
+        //Fintess = 0 for individuals dead
+        inds[dead].fitnessScaling = 0;
+
+}
+
+1000 late() {
+        sim.treeSeqOutput("./TreeSequences/SlimTreeseq_Ne" + Ne + "_" + simID + "_CHR" + chr + ".tree");
+        sim.simulationFinished();
+}

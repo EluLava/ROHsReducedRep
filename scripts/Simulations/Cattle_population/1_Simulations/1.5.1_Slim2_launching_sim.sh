@@ -1,0 +1,16 @@
+#! /bin/bash
+
+#create output directory
+mkdir -p ./Slim_Applying_inbreeding
+
+launching_slim() {
+
+	CHR=$1
+	LEN=$2
+
+	slim -d CHR=${CHR} -d chr_length=${LEN} ./Cattle_applying_ped.slim
+
+}
+
+#Launch the script for all CHRs
+parallel -j20 ::: launching_slim ::: {1..29} :::+ {158999999,137499999,121899999,121299999,121599999,119999999,113199999,114099999,106199999,104699999,107599999,91599999,84599999,84999999,85699999,81999999,75399999,66299999,64299999,72299999,71899999,61699999,52699999,62899999,43099999,51899999,45699999,46499999,51699999}
