@@ -18,7 +18,7 @@ WGS_ROHsCal_PLINK(){
 
         #Call ROHs
         plink --bfile ./WGS_ROHs_PLINK/BTMP_${SimID} --homozyg --homozyg-window-snp 100 --homozyg-density 100 \
-        --homozyg-snp 100 --homozyg-gap 1000 --homozyg-window-het 1 --homozyg-het 8 --homozyg-kb 100 --chr-set 30 --out ./WGS_ROHs_PLINK/WGS_${SimID}_ROH
+        --homozyg-snp 100 --homozyg-gap 1000 --homozyg-window-het 2 --homozyg-het 8 --homozyg-kb 100 --chr-set 30 --out ./WGS_ROHs_PLINK/WGS_${SimID}_ROH
         
         #plink FHOM
         plink --bfile ./WGS_ROHs_PLINK/BTMP_${SimID} --het --chr-set 30 --out ./WGS_FHOM/HET_WGS_${SimID}
