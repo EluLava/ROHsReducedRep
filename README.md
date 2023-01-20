@@ -1,6 +1,6 @@
 # ROHsReducedRep
 
-This repository contains all the necessary codes for this paper: https://doi.org/10.1101/2022.08.26.505374
+This repository contains all the necessary codes for this paper: https://onlinelibrary.wiley.com/doi/10.1111/1755-0998.13755
 
 ## ABSTRACT
 
